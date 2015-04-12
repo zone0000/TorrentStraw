@@ -10,6 +10,7 @@ import cookielib
 import htmllib
 import argparse
 import tempfile
+import win32file
 
 import transmissionrpc
 
@@ -124,14 +125,19 @@ class TorrentStraw(object):
 
         filename = '%s.torrent' % (title)
         temp_dir = tempfile.gettempdir()
+        long_path_temp_dir = win32file.GetLongPathName(temp_dir)
         url_filename = TorrentStraw.pathname_to_url(filename)
-        write_file_path = os.path.join(temp_dir, url_filename)
+        write_file_path = os.path.join(long_path_temp_dir, url_filename)
+
+        if os.path.isfile(write_file_path):
+            print 'Already exist file.(%s)' % (write_file_path)
+            return
 
         try:
             with open(write_file_path, "wb") as file_handle:
                 file_handle.write(urllib2.urlopen(request).read())
         except IOError:
-            print 'Could not save file.(%s)' % write_file_path
+            print 'Could not save file.(%s)' % (write_file_path)
             return
 
         pathname_to_url = TorrentStraw.pathname_to_url(temp_dir)
@@ -182,8 +188,8 @@ class CustomArgumentParser(object):
     def get_filters(self):
         """get unicode filters from parsed values"""
         unicode_filters = []
-        for filter in self.parsed_values.filter:
-            unicode_filter = unicode(filter, 'cp949')
+        for ignore_filter in self.parsed_values.filter:
+            unicode_filter = unicode(ignore_filter, 'cp949')
             unicode_filters.append(unicode_filter)
         return unicode_filters
 
@@ -229,8 +235,11 @@ def main():
 
     torrent_title_download_urls = \
         torrent_straw.get_torrent_title_download_urls(title_board_urls)
-    torrent_file_paths = torrent_straw.download_torrent_files(
-        torrent_title_download_urls)
+    torrent_file_paths = torrent_straw.download_torrent_files(torrent_title_download_urls)
+
+    if len(torrent_file_paths) == 0:
+        print 'no result.'
+        return
 
     transmission_ip = parser.get_ip_address()
     transmission_port = parser.get_port()
@@ -257,3 +266,6 @@ if __name__ == "__main__":
         main()
     except os.error, err:
         print str(err)
+        sys.exit(1)
+
+    sys.exit(0)
