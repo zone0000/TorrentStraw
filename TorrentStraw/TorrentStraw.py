@@ -140,7 +140,7 @@ class TorrentStraw(object):
             print 'Could not save file.(%s)' % (write_file_path)
             return
 
-        pathname_to_url = TorrentStraw.pathname_to_url(temp_dir)
+        pathname_to_url = TorrentStraw.pathname_to_url(long_path_temp_dir)
         url_path = urllib2.urlparse.urlunparse(
             urllib2.urlparse.urlparse(pathname_to_url)._replace(scheme='file'))
         url_file_path = urllib2.urlparse.urljoin(url_path + '/', url_filename)
