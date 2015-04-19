@@ -92,17 +92,10 @@ class TorrentStraw(object):
 
         filtered_title_board_urls_u = []
         for title_board_url_u in title_board_urls_u:
-            for filter_u in filters_u:
-                if filter_u not in title_board_url_u[0]:
-                    filtered_title_board_urls_u.append(title_board_url_u)
+            if not any(filter in title_board_url_u[0].lower() for filter in filters_u):
+                filtered_title_board_urls_u.append(title_board_url_u)
 
-        title_board_urls_with_keyword_u = []
-        for title_board_url_u in filtered_title_board_urls_u:
-            for keyword_u in keywords_u:
-                if keyword_u in title_board_url_u[0]:
-                    title_board_urls_with_keyword_u.append(title_board_url_u)
-
-        return title_board_urls_with_keyword_u
+        return filtered_title_board_urls_u
 
     def __get_download_urls_u(self, url_u):
         """get torrent file downdload url"""
