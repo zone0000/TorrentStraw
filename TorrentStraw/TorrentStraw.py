@@ -14,6 +14,37 @@ import win32file
 
 import transmissionrpc
 
+class StrConvert(object):
+    """Unicode Converter"""
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def to_unicode(str):
+        if type(str).__name__ == 'unicode':
+            return str
+
+        elif type(str).__name__ == 'str':
+            try:
+                unicode_str = unicode(str, 'utf-8')
+            except UnicodeDecodeError, err:
+                try:
+                    unicode_str = unicode(str, 'cp949')
+                except UnicodeDecodeError, err:
+                    try:
+                        unicode_str = unicode(str, 'ascii')
+                    except UnicodeDecodeError, err:
+                        print u"Unicode decode error exception : %s" % err
+                        sys.exit(2)
+        return unicode_str
+
+    @staticmethod
+    def to_utf8(str):
+        if type(str).__name__ == 'unicode':
+            return str.encode('utf-8')
+        elif type(str).__name__ == 'str':
+            return StrConvert.to_unicode(str).encode('utf-8')
+        return str
 
 class TorrentStraw(object):
     """TorrentStraw class"""
@@ -27,12 +58,12 @@ class TorrentStraw(object):
         urllib2.install_opener(build_opener)
         return
 
-    def __get_response_from_url(self, url, referer=""):
+    def __get_response_from_url(self, url_u, referer_u=""):
         """get response from url"""
-        req = urllib2.Request(url)
+        req = urllib2.Request(url_u)
         req.add_header("User-agent", self.user_agent)
-        if len(referer) > 0:
-            req.add_header("Referer", referer)
+        if len(referer_u) > 0:
+            req.add_header("Referer", referer_u)
         response = urllib2.urlopen(req)
         return response.read()
 
@@ -44,7 +75,7 @@ class TorrentStraw(object):
             unicode_pairs.append([pair[0].decode(), pair[1].decode()])
         return unicode_pairs
 
-    def get_title_board_urls(self, url):
+    def get_title_board_urls_u(self, url):
         """get pair values(title, boardurl)"""
         contents = self.__get_response_from_url(url)
         compiled_regex = re.compile(
@@ -55,110 +86,115 @@ class TorrentStraw(object):
             title_board_urls.append([board_url_title[1], board_url_title[0]])
         return title_board_urls
 
-    def get_title_board_urls_keywords(self, url, unicode_keywords, unicode_filters):
-        """get pair values(title, boardurl) with keywords"""
-        title_board_urls = self.get_title_board_urls(url)
+    def get_title_board_urls_keywords_u(self, url_u, keywords_u, filters_u):
+        """get unicode pair values(title, boardurl) with keywords"""
+        title_board_urls_u = self.get_title_board_urls_u(url_u)
 
-        filtered_title_board_urls = []
-        for title_board_url in title_board_urls:
-            for unicode_filter in unicode_filters:
-                if unicode_filter not in title_board_url[0]:
-                    filtered_title_board_urls.append(title_board_url)
+        filtered_title_board_urls_u = []
+        for title_board_url_u in title_board_urls_u:
+            for filter_u in filters_u:
+                if filter_u not in title_board_url_u[0]:
+                    filtered_title_board_urls_u.append(title_board_url_u)
 
-        title_board_urls_with_keyword = []
-        for title_board_url in filtered_title_board_urls:
-            for unicode_keyword in unicode_keywords:
-                if unicode_keyword in title_board_url[0]:
-                    title_board_urls_with_keyword.append(title_board_url)
+        title_board_urls_with_keyword_u = []
+        for title_board_url_u in filtered_title_board_urls_u:
+            for keyword_u in keywords_u:
+                if keyword_u in title_board_url_u[0]:
+                    title_board_urls_with_keyword_u.append(title_board_url_u)
 
-        return title_board_urls_with_keyword
+        return title_board_urls_with_keyword_u
 
-    def __get_download_urls(self, url):
+    def __get_download_urls_u(self, url_u):
         """get torrent file downdload url"""
-        contents = self.__get_response_from_url(url, url)
+        contents = self.__get_response_from_url(url_u, url_u)
         regex_pattern = r'<td><a href="(.*)" target="_blank">' \
         r'<img src=".*"></a></td>'
         compiled_regex = re.compile(regex_pattern, re.MULTILINE)
-        return compiled_regex.findall(contents)
+        regex_findall = compiled_regex.findall(contents)
+        download_urls_u = []
+        for regex_find in regex_findall:
+            download_urls_u.append(StrConvert.to_unicode(regex_find))
+        return download_urls_u
 
-    def get_torrent_title_download_urls(self, title_board_urls):
+    def get_torrent_title_download_urls_u(self, title_board_urls_u):
         """get pair values(title, download url)"""
-        TorrentStraw.print_title_board_urls(title_board_urls)
-        torrent_download_urls = []
-        for title_boardurl in title_board_urls:
-            (title, boardurl) = title_boardurl
-            unescaped_download_urls = self.unescaped_urls(self.__get_download_urls(boardurl))
-            torrent_download_urls.append([title, unescaped_download_urls[0]])
-        return torrent_download_urls
+        TorrentStraw.print_title_board_urls_u(title_board_urls_u)
+        torrent_download_urls_u = []
+        for title_boardurl_u in title_board_urls_u:
+            (title_u, boardurl_u) = title_boardurl_u
+            unescaped_download_urls = self.__get_unescaped_urls_u(self.__get_download_urls_u(boardurl_u))
+            torrent_download_urls_u.append([title_u, unescaped_download_urls[0]])
+        return torrent_download_urls_u
 
     @staticmethod
-    def unescape(text):
-        """ remote html escape string"""
+    def __get_unescape_u(text_u):
+        """get unesace unicode html"""
         html_parser = htmllib.HTMLParser(None)
         html_parser.save_bgn()
-        html_parser.feed(text)
-        return html_parser.save_end()
+        html_parser.feed(text_u)
+        unescaped_u = html_parser.save_end()
+        return unescaped_u
 
     @staticmethod
-    def unescaped_urls(urls):
-        """unescape html string in url"""
-        unescaped_urls = []
-        for url in urls:
-            unescaped_urls.append(TorrentStraw.unescape(url))
-        return unescaped_urls
+    def __get_unescaped_urls_u(urls_u):
+        """get unescape unicode html string in url"""
+        unescaped_urls_u = []
+        for url_u in urls_u:
+            unescaped_urls_u.append(TorrentStraw.__get_unescape_u(url_u))
+        return unescaped_urls_u
 
     @staticmethod
-    def pathname_to_url(pathname):
+    def pathname_to_url_utf8(pathname_u):
         """convert pathname to url"""
-        utf8_pathname = pathname.encode('utf-8')
-        utf8_url = urllib.pathname2url(utf8_pathname)
-        return utf8_url.replace('///', '//')
+        pathname_utf8 = StrConvert.to_utf8(pathname_u)
+        url_utf8 = urllib.pathname2url(pathname_utf8)
+        return url_utf8.replace('///', '//')
 
     @staticmethod
-    def download_torrent_file(title_download_url):
+    def download_torrent_file_u(title_download_url_u):
         """download torrent file"""
-        (title, download_url) = title_download_url
+        (title_u, download_url_u) = title_download_url_u
 
-        referer_url = "http://%s" % urllib2.urlparse.urlsplit(download_url).hostname
-        request = urllib2.Request(download_url)
-        request.add_header("Referer", referer_url)
+        referer_url_u = "http://%s" % urllib2.urlparse.urlsplit(download_url_u).hostname
+        request = urllib2.Request(download_url_u)
+        request.add_header("Referer", referer_url_u)
 
-        filename = '%s.torrent' % (title)
+        filename_u = '%s.torrent' % (title_u)
         temp_dir = tempfile.gettempdir()
-        long_path_temp_dir = win32file.GetLongPathName(temp_dir)
-        url_filename = TorrentStraw.pathname_to_url(filename)
-        write_file_path = os.path.join(long_path_temp_dir, url_filename)
+        long_path_temp_dir_u = win32file.GetLongPathName(temp_dir)
+        url_filename_utf8 = TorrentStraw.pathname_to_url_utf8(filename_u)
+        write_file_path_u = os.path.join(long_path_temp_dir_u, url_filename_utf8)
 
-        if os.path.isfile(write_file_path):
-            print 'Already exist file.(%s)' % (write_file_path)
+        if os.path.isfile(write_file_path_u):
+            print 'Already exist file.(%s)' % (write_file_path_u)
             return
 
         try:
-            with open(write_file_path, "wb") as file_handle:
+            with open(write_file_path_u, "wb") as file_handle:
                 file_handle.write(urllib2.urlopen(request).read())
         except IOError:
-            print 'Could not save file.(%s)' % (write_file_path)
+            print 'Could not save file.(%s)' % (write_file_path_u)
             return
 
-        pathname_to_url = TorrentStraw.pathname_to_url(long_path_temp_dir)
-        url_path = urllib2.urlparse.urlunparse(
-            urllib2.urlparse.urlparse(pathname_to_url)._replace(scheme='file'))
-        url_file_path = urllib2.urlparse.urljoin(url_path + '/', url_filename)
+        pathname_to_url_utf8 = TorrentStraw.pathname_to_url_utf8(long_path_temp_dir_u)
+        url_path_utf8 = urllib2.urlparse.urlunparse(
+            urllib2.urlparse.urlparse(pathname_to_url_utf8)._replace(scheme='file'))
+        url_file_path_utf8 = urllib2.urlparse.urljoin(url_path_utf8 + '/', url_filename_utf8)
 
-        return url_file_path
+        return StrConvert.to_unicode(url_file_path_utf8)
 
     @staticmethod
-    def download_torrent_files(title_download_urls):
+    def download_torrent_files_u(title_download_urls_u):
         """download torrent file"""
-        torrent_file_paths = []
-        for title_download_url in title_download_urls:
-            file_full_path = TorrentStraw.download_torrent_file(title_download_url)
-            if file_full_path is not None:
-                torrent_file_paths.append(file_full_path)
-        return torrent_file_paths
+        torrent_file_paths_u = []
+        for title_download_url_u in title_download_urls_u:
+            file_full_path_u = TorrentStraw.download_torrent_file_u(title_download_url_u)
+            if file_full_path_u is not None:
+                torrent_file_paths_u.append(file_full_path_u)
+        return torrent_file_paths_u
 
     @staticmethod
-    def print_title_board_urls(title_board_urls):
+    def print_title_board_urls_u(title_board_urls):
         """print pair values(title, boardurl)"""
         for title_board_url in title_board_urls:
             print "Title(%s), BoardUrl(%s)" % (title_board_url[0], title_board_url[1])
@@ -177,46 +213,46 @@ class CustomArgumentParser(object):
         self.parser.add_argument('--password', default='', help='transmission user password')
         self.parsed_values = self.parser.parse_args()
 
-    def get_keywords(self):
+    def get_keywords_u(self):
         """get unicode keywords from parsed values"""
-        unicode_keywords = []
+        keywords_u = []
         for keyword in self.parsed_values.keyword:
-            unicode_keyword = unicode(keyword, 'cp949')
-            unicode_keywords.append(unicode_keyword)
-        return unicode_keywords
+            keyword_u = StrConvert.to_unicode(keyword)
+            keywords_u.append(keyword_u)
+        return keywords_u
 
-    def get_filters(self):
+    def get_filters_u(self):
         """get unicode filters from parsed values"""
-        unicode_filters = []
+        filters_u = []
         for ignore_filter in self.parsed_values.filter:
-            unicode_filter = unicode(ignore_filter, 'cp949')
-            unicode_filters.append(unicode_filter)
-        return unicode_filters
+            filter_u = StrConvert.to_unicode(ignore_filter)
+            filters_u.append(filter_u)
+        return filters_u
 
-    def get_web_url(self):
-        """get web url from parser"""
-        web_url = unicode(self.parsed_values.weburl, 'cp949')
-        return str(web_url)
+    def get_web_url_u(self):
+        """get unicode web url from parser"""
+        web_url_u = StrConvert.to_unicode(self.parsed_values.weburl)
+        return web_url_u
 
-    def get_ip_address(self):
-        """get ip address from parser"""
-        ipaddress = unicode(self.parsed_values.ip, 'cp949')
-        return str(ipaddress)
+    def get_ip_u(self):
+        """get unicode ip address from parser"""
+        ip_u = StrConvert.to_unicode(self.parsed_values.ip)
+        return ip_u
 
     def get_port(self):
         """get port from parser"""
-        port = unicode(self.parsed_values.port, 'cp949')
+        port = StrConvert.to_unicode(self.parsed_values.port)
         return int(port)
 
-    def get_user(self):
-        """get username from parser"""
-        user = unicode(self.parsed_values.user, 'cp949')
-        return str(user)
+    def get_username_u(self):
+        """get unicode username from parser"""
+        user_u = StrConvert.to_unicode(self.parsed_values.user)
+        return user_u
 
-    def get_password(self):
-        """get password from parser"""
-        password = unicode(self.parsed_values.password, 'cp949')
-        return str(password)
+    def get_password_u(self):
+        """get unicode password from parser"""
+        password_u = StrConvert.to_unicode(self.parsed_values.password)
+        return password_u
 
 def main():
     """main"""
@@ -225,35 +261,35 @@ def main():
         parser.parser.print_help()
         return
 
-    web_url = parser.get_web_url()
-    unicode_keywords = parser.get_keywords()
-    unicode_filters = parser.get_filters()
+    web_url_u = parser.get_web_url_u()
+    keywords_u = parser.get_keywords_u()
+    filters_u = parser.get_filters_u()
 
     torrent_straw = TorrentStraw()
-    title_board_urls = torrent_straw.get_title_board_urls_keywords(
-        web_url, unicode_keywords, unicode_filters)
+    title_board_urls_u = torrent_straw.get_title_board_urls_keywords_u(
+        web_url_u, keywords_u, filters_u)
 
-    torrent_title_download_urls = \
-        torrent_straw.get_torrent_title_download_urls(title_board_urls)
-    torrent_file_paths = torrent_straw.download_torrent_files(torrent_title_download_urls)
+    torrent_title_download_urls_u = \
+        torrent_straw.get_torrent_title_download_urls_u(title_board_urls_u)
+    torrent_file_paths_u = torrent_straw.download_torrent_files_u(torrent_title_download_urls_u)
 
-    if len(torrent_file_paths) == 0:
+    if len(torrent_file_paths_u) == 0:
         print 'no result.'
         return
 
-    transmission_ip = parser.get_ip_address()
-    transmission_port = parser.get_port()
-    transmission_user = parser.get_user()
-    transmission_password = parser.get_password()
+    u_ipaddress = parser.get_ip_u()
+    port = parser.get_port()
+    u_username = parser.get_username_u()
+    u_password = parser.get_password_u()
 
     torrent_client = transmissionrpc.Client(
-        address=transmission_ip,
-        port=transmission_port,
-        user=transmission_user,
-        password=transmission_password)
+        address=u_ipaddress,
+        port=port,
+        user=u_username,
+        password=u_password)
 
-    for torrent_file_path in torrent_file_paths:
-        torrent_object = torrent_client.add_torrent(torrent_file_path)
+    for torrent_file_path_u in torrent_file_paths_u:
+        torrent_object = torrent_client.add_torrent(torrent_file_path_u)
         print "add_torrent name : %s" % (torrent_object.name)
     return
 
@@ -267,5 +303,3 @@ if __name__ == "__main__":
     except os.error, err:
         print str(err)
         sys.exit(1)
-
-    sys.exit(0)
