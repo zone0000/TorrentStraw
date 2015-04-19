@@ -20,31 +20,33 @@ class StrConvert(object):
         pass
 
     @staticmethod
-    def to_unicode(str):
-        if type(str).__name__ == 'unicode':
-            return str
+    def to_unicode(text):
+        """To unicode"""
+        if type(text).__name__ == 'unicode':
+            return text
 
-        elif type(str).__name__ == 'str':
+        elif type(text).__name__ == 'str':
             try:
-                unicode_str = unicode(str, 'utf-8')
+                unicode_str = unicode(text, 'utf-8')
             except UnicodeDecodeError, err:
                 try:
-                    unicode_str = unicode(str, 'cp949')
+                    unicode_str = unicode(text, 'cp949')
                 except UnicodeDecodeError, err:
                     try:
-                        unicode_str = unicode(str, 'ascii')
+                        unicode_str = unicode(text, 'ascii')
                     except UnicodeDecodeError, err:
                         print u"Unicode decode error exception : %s" % err
                         sys.exit(2)
         return unicode_str
 
     @staticmethod
-    def to_utf8(str):
-        if type(str).__name__ == 'unicode':
+    def to_utf8(text):
+        """To utf8 string"""
+        if type(text).__name__ == 'unicode':
             return str.encode('utf-8')
-        elif type(str).__name__ == 'str':
-            return StrConvert.to_unicode(str).encode('utf-8')
-        return str
+        elif type(text).__name__ == 'str':
+            return StrConvert.to_unicode(text).encode('utf-8')
+        return text
 
 class TorrentStraw(object):
     """TorrentStraw class"""
@@ -67,24 +69,19 @@ class TorrentStraw(object):
         response = urllib2.urlopen(req)
         return response.read()
 
-    @staticmethod
-    def __utf8_to_unicode(pairs):
-        """convert unicode to utf8"""
-        unicode_pairs = []
-        for pair in pairs:
-            unicode_pairs.append([pair[0].decode(), pair[1].decode()])
-        return unicode_pairs
-
     def get_title_board_urls_u(self, url):
         """get pair values(title, boardurl)"""
         contents = self.__get_response_from_url(url)
         compiled_regex = re.compile(
             r'<a href="(.*)" class="hx"[^>]+>\n\t+([^\t]+)\t+</a>', re.MULTILINE)
-        board_url_titles = self.__utf8_to_unicode(compiled_regex.findall(contents))
-        title_board_urls = []
-        for board_url_title in board_url_titles:
-            title_board_urls.append([board_url_title[1], board_url_title[0]])
-        return title_board_urls
+        regex_findall = compiled_regex.findall(contents)
+
+        title_board_urls_u = []
+        for regex_find in regex_findall:
+            title_u = StrConvert.to_unicode(regex_find[1])
+            board_url_u = StrConvert.to_unicode(regex_find[0])
+            title_board_urls_u.append([title_u, board_url_u])
+        return title_board_urls_u
 
     def get_title_board_urls_keywords_u(self, url_u, keywords_u, filters_u):
         """get unicode pair values(title, boardurl) with keywords"""
@@ -92,10 +89,17 @@ class TorrentStraw(object):
 
         filtered_title_board_urls_u = []
         for title_board_url_u in title_board_urls_u:
-            if not any(filter in title_board_url_u[0].lower() for filter in filters_u):
+            if not any(filter_u in title_board_url_u[0].lower()
+                       for filter_u in filters_u):
                 filtered_title_board_urls_u.append(title_board_url_u)
 
-        return filtered_title_board_urls_u
+        title_board_urls_keyword_u = []
+        for filtered_title_board_url_u in filtered_title_board_urls_u:
+            if any(keyword_u in filtered_title_board_url_u[0].lower()
+                   for keyword_u in keywords_u):
+                title_board_urls_keyword_u.append(filtered_title_board_url_u)
+
+        return title_board_urls_keyword_u
 
     def __get_download_urls_u(self, url_u):
         """get torrent file downdload url"""
@@ -109,13 +113,14 @@ class TorrentStraw(object):
             download_urls_u.append(StrConvert.to_unicode(regex_find))
         return download_urls_u
 
-    def get_torrent_title_download_urls_u(self, title_board_urls_u):
+    def get_torrent_download_urls_u(self, title_board_urls_u):
         """get pair values(title, download url)"""
         TorrentStraw.print_title_board_urls_u(title_board_urls_u)
         torrent_download_urls_u = []
         for title_boardurl_u in title_board_urls_u:
             (title_u, boardurl_u) = title_boardurl_u
-            unescaped_download_urls = self.__get_unescaped_urls_u(self.__get_download_urls_u(boardurl_u))
+            unescaped_download_urls = self.__get_unescaped_urls_u(
+                self.__get_download_urls_u(boardurl_u))
             torrent_download_urls_u.append([title_u, unescaped_download_urls[0]])
         return torrent_download_urls_u
 
@@ -263,7 +268,7 @@ def main():
         web_url_u, keywords_u, filters_u)
 
     torrent_title_download_urls_u = \
-        torrent_straw.get_torrent_title_download_urls_u(title_board_urls_u)
+        torrent_straw.get_torrent_download_urls_u(title_board_urls_u)
     torrent_file_paths_u = torrent_straw.download_torrent_files_u(torrent_title_download_urls_u)
 
     if len(torrent_file_paths_u) == 0:
