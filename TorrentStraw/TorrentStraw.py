@@ -43,7 +43,7 @@ class StrConvert(object):
     def to_utf8(text):
         """To utf8 string"""
         if type(text).__name__ == 'unicode':
-            return str.encode('utf-8')
+            return text.encode('utf-8')
         elif type(text).__name__ == 'str':
             return StrConvert.to_unicode(text).encode('utf-8')
         return text
